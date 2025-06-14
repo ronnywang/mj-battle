@@ -105,7 +105,7 @@ class GameTable
         );
     }
 
-    public function init()
+    public function init($callback)
     {
         $this->tile_set = Mahjong::getRandomTileSet();
 
@@ -188,7 +188,7 @@ class GameTable
 
             // 處理輸入
             while (true) {
-                $input = $this->parseInput($allow, $playing_player);
+                $input = $this->parseInput($allow, $playing_player, $callback);
 
                 if ($input->talk ?? false) {
                     $this->public_events[] = sprintf("\$%d說：「%s」",
@@ -532,7 +532,7 @@ class GameTable
         return false;
     }
 
-    public function parseInput($allow, $player_idx)
+    public function parseInput($allow, $player_idx, $callback)
     {
         $message = $this->getInitMessage($player_idx);
         if (count($this->public_events) > 0) {
@@ -553,11 +553,7 @@ class GameTable
                 $message .= "\n* {$description}";
             }
             $message .= "\n(不需要分析為什麼，如果你想要垃圾話，可以透過 \"talk\":\"垃圾話內容\" 補充)";
-            echo $message . "\n";
-
-            $ret = readline("TO Player " . $this->player_names[$player_idx] . " > ");
-            readline_add_history($ret);
-
+            $ret = $callback($message, $player_idx, $this->player_names[$player_idx]);
             if (!$ret = json_decode($ret)) {
                 continue;
             }
