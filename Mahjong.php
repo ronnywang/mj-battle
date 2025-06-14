@@ -179,26 +179,12 @@ class GameTable
                     "放棄吃碰胡槓，請回答 {\"放棄\":true}",
                 ];
                 unset($action_stack[$playing_player]); // 移除已經處理的玩家
-                $your_event = '';
             } else {
                 // 摸牌
                 $playing_player = ($this->last_throw_player + 1) % 4; // 換下一個玩家
                 $this->players[$playing_player]['drawn_tile'] = array_shift($this->tile_set);
                 $allow = $this->checkAllowAction($playing_player);
-                $your_event = sprintf("，你摸到的牌是 %s",
-                    Mahjong::mapToWord($this->players[$playing_player]['drawn_tile'])
-                );
             }
-
-            $message = $this->getInitMessage($playing_player);
-            if (count($this->public_events) > 0) {
-                for ($idx = $this->players[$playing_player]['saw_event_id'] + 1; $idx < count($this->public_events); $idx++) {
-                    $message .= "，" . self::changeName($playing_player, $this->public_events[$idx]);
-                }
-                $this->players[$playing_player]['saw_event_id'] = count($this->public_events) - 1;
-            }
-            $message .= $your_event;
-            echo $message;
 
             //error_log(json_encode($allow, JSON_UNESCAPED_UNICODE));
 
@@ -217,10 +203,7 @@ class GameTable
                     $hands = $this->players[$playing_player]['hand'];
                     $hand_tile_count = array_count_values($hands);
                     $last_throw_tile = $this->last_throw_tile;
-                    if ($hand_tile_count[$last_throw_tile] < 2) {
-                        echo "你沒有 {$input->碰} 這張牌，請重新輸入。\n";
-                        continue; // 重新輸入
-                    }
+
                     $c = 2;
                     $hands = array_filter($hands, function($tile_id) use ($last_throw_tile, &$c) {
                         if ($tile_id == $last_throw_tile && $c > 0) {
@@ -242,10 +225,6 @@ class GameTable
                     $hands = $this->players[$playing_player]['hand'];
                     $hand_tile_count = array_count_values($hands);
                     $last_throw_tile = $this->last_throw_tile;
-                    if ($hand_tile_count[$last_throw_tile] < 3) {
-                        echo "你沒有 {$input->碰} 這張牌，請重新輸入。\n";
-                        continue; // 重新輸入
-                    }
                     $c = 3;
                     $hands = array_filter($hands, function($tile_id) use ($last_throw_tile, &$c) {
                         if ($tile_id == $last_throw_tile && $c > 0) {
@@ -270,9 +249,9 @@ class GameTable
                 if ($input->吃 ?? false) { // 吃牌
                     $hands = $this->players[$playing_player]['hand'];
                     $first_tile_id = Mahjong::getTileID($input->吃);
-                    $last_drawn_tile = $this->last_throw_tile;
-                    $hands = array_filter($hands, function($tile_id) use ($first_tile_id, $last_drawn_tile) {
-                        if ($last_drawn_tile == $tile_id) {
+                    $last_throw_tile = $this->last_throw_tile;
+                    $hands = array_filter($hands, function($tile_id) use ($first_tile_id, $last_throw_tile) {
+                        if ($last_throw_tile == $tile_id) {
                             return true; // 手上有吃的牌保留下來
                         }
                         if ($tile_id == $first_tile_id or $tile_id == $first_tile_id + 4 or $tile_id == $first_tile_id + 8) {
@@ -286,20 +265,21 @@ class GameTable
                         $first_tile_id + 4,
                         $first_tile_id + 8,
                     ];
-                    $eating_tiles = array_values(array_filter($eating_tiles, function($tile_id) use ($last_drawn_tile) {
-                        return $tile_id != $last_drawn_tile; // 移除摸到的牌
+                    $eating_tiles = array_values(array_filter($eating_tiles, function($tile_id) use ($last_throw_tile) {
+                        return $tile_id != $last_throw_tile; // 移除摸到的牌
                     }));
 
                     $this->public_events[] = sprintf("\$%d吃了%s,%s,%s",
                         $playing_player,
                         Mahjong::mapToWord($eating_tiles[0]),
-                        Mahjong::mapToWord($last_drawn_tile),
+                        Mahjong::mapToWord($last_throw_tile),
                         Mahjong::mapToWord($eating_tiles[1]),
                     );
                     // 接著丟牌
                 }
 
                 if ($input->胡 ?? false) { // 胡牌
+                    // TODO: 胡牌，要通知大家講完結感言
                 }
 
                 if ($input->放棄 ?? false) {
@@ -310,14 +290,13 @@ class GameTable
                 if ($input->丟 ?? false) { // 打牌
                     $action_stack = []; // 清空動作堆疊
                     $hands = $this->players[$playing_player]['hand'];
-                    $hands[] = $this->players[$playing_player]['drawn_tile'];
+                    if ($this->players[$playing_player]['drawn_tile']) {
+                        $hands[] = $this->players[$playing_player]['drawn_tile'];
+                    }
                     $tile_id = Mahjong::getTileID($input->丟);
                     $idx = array_search($tile_id, $hands);
-                    if ($idx === false) {
-                        echo "你沒有 {$input->丟} 這張牌，請重新輸入。\n";
-                        continue; // 重新輸入
-                    }
                     unset($hands[$idx]);
+                    sort($hands); // 打牌後要排序
                     $hands = array_values($hands);
                     $this->players[$playing_player]['hand'] = $hands;
                     $this->players[$playing_player]['drawn_tile'] = null; // 打牌後沒有摸牌
@@ -376,7 +355,7 @@ class GameTable
             if (!is_null($throw_tile) && $throw_tile < 108 && ($throw_tile % 4) == 0) { // 只有萬、筒、條可以吃牌
                 $base = floor($throw_tile / 36) * 36;
                 $drown_number = ($throw_tile % 36) / 4;
-                for ($start_number = max(0, $drown_number - 2); $start_number < min(7, $drown_number + 3); $start_number ++) {
+                for ($start_number = max(0, $drown_number - 2); $start_number < min(7, $drown_number); $start_number ++) {
                     for ($i = 0; $i < 3; $i ++) {
                         if ($start_number + $i == $drown_number) {
                             continue; // 跳過自己摸到的牌
@@ -552,8 +531,20 @@ class GameTable
 
     public function parseInput($allow, $player_idx)
     {
+        $message = $this->getInitMessage($player_idx);
+        if (count($this->public_events) > 0) {
+            for ($idx = $this->players[$player_idx]['saw_event_id'] + 1; $idx < count($this->public_events); $idx++) {
+                $message .= "，" . self::changeName($player_idx, $this->public_events[$idx]);
+            }
+            $this->players[$player_idx]['saw_event_id'] = count($this->public_events) - 1;
+        }
+        if ($this->players[$player_idx]['drawn_tile']) {
+            $message .= sprintf("，你摸到的牌是 %s",
+                Mahjong::mapToWord($this->players[$player_idx]['drawn_tile'])
+            );
+        }
         while (true) {
-            $message = "，請問您要做什麼？";
+            $message .= "，請問您要做什麼？";
             foreach ($allow as $term) {
                 list($action, $description) = $term;
                 $message .= "\n* {$description}";
@@ -566,6 +557,9 @@ class GameTable
             if (!$ret = json_decode($ret)) {
                 continue;
             }
+            $hands = $this->players[$player_idx]['hand'];
+            $tile_count = array_count_values($hands);
+
             $output = new StdClass;
             if ($ret->talk ?? false) {
                 $output->talk = $ret->talk;
@@ -579,7 +573,7 @@ class GameTable
                     $output->丟 = $ret->丟;
                     $tile_id = Mahjong::getTileID($ret->丟);
                     if ($tile_id === false) {
-                        echo "無效的牌名，請重新輸入。\n";
+                        $message = "無效的牌名，請重新輸入。\n";
                         continue 2; // 重新輸入
                     }
                     if ($tile_id === $this->players[$player_idx]['drawn_tile']) {
@@ -588,7 +582,7 @@ class GameTable
                         return $output;
                     } else {
                         error_log(json_encode($this->players[$player_idx]['hand'], JSON_UNESCAPED_UNICODE));
-                        echo "你沒有 {$ret->丟} 這張牌";
+                        $message = "你沒有 {$ret->丟} 這張牌";
                         continue 2; // 重新輸入
                     }
                 }
@@ -602,15 +596,29 @@ class GameTable
                     if (($ret->{$action} ?? false) === true) {
                         if ($action == '碰') {
                             if (!($ret->丟 ?? false)) {
-                                echo "碰牌時需要丟牌，請重新輸入。\n";
+                                $message = "碰牌時需要丟牌，請重新輸入，";
                                 continue 2; // 重新輸入
                             }
                             $output->丟 = $ret->丟;
                             $tile_id = Mahjong::getTileID($ret->丟);
                             if ($tile_id === false) {
-                                echo "無效的牌名，請重新輸入。\n";
+                                $message = "無效的牌名，請重新輸入，";
                                 continue 2; // 重新輸入
                             }
+                            if ($tile_count[$tile_id] < 1) {
+                                $message = "你沒有 {$output->丟} 可以丟，";
+                                continue 2;
+                            }
+                            if ($tile_count[$this->last_throw_tile] < 2) {
+                                $message = "你沒有辦法碰 " . Mahjong::mapToWord($this->last_throw_tile) . "，";
+                                continue 2;
+                            }
+                        } elseif ('槓' == $action) {
+                            if ($tile_count[$this->last_throw_tile] < 3) {
+                                $message = "你沒有辦法槓 " . Mahjong::mapToWord($this->last_throw_tile) . "，";
+                                continue 2;
+                            }
+
                         }
                         $output->{$action} = true;
                         return $output; // 放棄
@@ -625,12 +633,12 @@ class GameTable
                     $output->丟 = $ret->丟 ?? null; // 吃牌時需要丟牌
                     $eat_tile_id = Mahjong::getTileID($output->吃);
                     if ($eat_tile_id === false) {
-                        echo "無效的吃牌名，請重新輸入。\n";
+                        $message = "無效的吃牌名，請重新輸入。\n";
                         continue 2; // 重新輸入
                     }
                     $throw_tile_id = Mahjong::getTileID($output->丟);
                     if ($throw_tile_id === false) {
-                        echo "無效的丟牌名，請重新輸入。\n";
+                        $message = "無效的丟牌名，請重新輸入。\n";
                         continue 2; // 重新輸入
                     }
                     $last_throw_tile = $this->last_throw_tile;
@@ -640,13 +648,13 @@ class GameTable
                             continue;
                         }
                         if (!in_array($eat_tile_id + $i * 4, $this->players[$player_idx]['hand'])) {
-                            echo "你沒有 {$ret->吃} 這張牌，請重新輸入。\n";
+                            $message = "你沒有 {$ret->吃} 這張牌，請重新輸入。\n";
                             continue 2; // 重新輸入
                         }
                         $hand_tile_count[$eat_tile_id + $i * 4]--;
                     }
                     if ($hand_tile_count[$throw_tile_id] <= 0) {
-                        echo "你沒有 {$ret->丟} 這張牌，請重新輸入。\n";
+                        $message = "你沒有 {$ret->丟} 這張牌，請重新輸入。\n";
                         continue 2; // 重新輸入
                     }
                     return $output;
