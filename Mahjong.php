@@ -186,14 +186,12 @@ class GameTable
                 $allow = $this->checkAllowAction($playing_player);
             }
 
-            //error_log(json_encode($allow, JSON_UNESCAPED_UNICODE));
-
             // 處理輸入
             while (true) {
                 $input = $this->parseInput($allow, $playing_player);
 
                 if ($input->talk ?? false) {
-                    $this->public_events[] = sprintf("\$%d說：%s",
+                    $this->public_events[] = sprintf("\$%d說：「%s」",
                         $playing_player,
                         $input->talk,
                     );
@@ -250,11 +248,16 @@ class GameTable
                     $hands = $this->players[$playing_player]['hand'];
                     $first_tile_id = Mahjong::getTileID($input->吃);
                     $last_throw_tile = $this->last_throw_tile;
-                    $hands = array_filter($hands, function($tile_id) use ($first_tile_id, $last_throw_tile) {
+                    $removed = [];
+                    $hands = array_filter($hands, function($tile_id) use ($first_tile_id, $last_throw_tile, &$removed) {
                         if ($last_throw_tile == $tile_id) {
                             return true; // 手上有吃的牌保留下來
                         }
                         if ($tile_id == $first_tile_id or $tile_id == $first_tile_id + 4 or $tile_id == $first_tile_id + 8) {
+                            if ($removed[$tile_id] ?? false) { // 只移除一張
+                                return true;
+                            }
+                            $removed[$tile_id] = true;
                             return false; // 吃的牌移走
                         }
                         return true;
@@ -553,6 +556,7 @@ class GameTable
             echo $message . "\n";
 
             $ret = readline("TO Player " . $this->player_names[$player_idx] . " > ");
+            readline_add_history($ret);
 
             if (!$ret = json_decode($ret)) {
                 continue;
@@ -581,7 +585,6 @@ class GameTable
                     } else if (in_array($tile_id, $this->players[$player_idx]['hand'])) {
                         return $output;
                     } else {
-                        error_log(json_encode($this->players[$player_idx]['hand'], JSON_UNESCAPED_UNICODE));
                         $message = "你沒有 {$ret->丟} 這張牌";
                         continue 2; // 重新輸入
                     }
