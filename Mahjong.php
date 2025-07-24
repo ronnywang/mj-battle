@@ -87,11 +87,11 @@ class Mahjong
 class GameTable
 {
     protected $tile_set;
-    protected $players = [];
+    public $players = [];
     protected $public_events = [];
-    protected $player_names = ['聶小倩', '祝英台', '白素貞', '花木蘭'];
-    protected $last_throw_tile = null;
-    protected $last_throw_player = -1;
+    public $player_names = ['聶小倩', '祝英台', '白素貞', '花木蘭'];
+    public $last_throw_tile = null;
+    public $last_throw_player = -1;
 
     public function getInitMessage($player_idx)
     {
@@ -105,7 +105,7 @@ class GameTable
         );
     }
 
-    public function init($callback)
+    public function init($prompt_callback)
     {
         $this->tile_set = Mahjong::getRandomTileSet();
 
@@ -122,7 +122,7 @@ class GameTable
             $this->tile_set = array_slice($this->tile_set, 16);
             // 補花
             while ($this->players[$player]['hand'][15] >= 136) {
-                $this->players[$player]['door'][] = array_pop($this->players[$player]['hand']);
+                $this->players[$player]['door'][] = [array_pop($this->players[$player]['hand'])];
                 $this->players[$player]['hand'][] = array_shift($this->tile_set);
                 sort($this->players[$player]['hand']);
             }
@@ -188,7 +188,7 @@ class GameTable
 
             // 處理輸入
             while (true) {
-                $input = $this->parseInput($allow, $playing_player, $callback);
+                $input = $this->parseInput($allow, $playing_player, $prompt_callback);
 
                 if ($input->talk ?? false) {
                     $this->public_events[] = sprintf("\$%d說：「%s」",
@@ -212,6 +212,7 @@ class GameTable
                     });
                     $hands = array_values($hands);
                     $this->players[$playing_player]['hand'] = $hands;
+                    $this->players[$playing_player]['door'][] = [$last_throw_tile, $last_throw_tile, $last_throw_tile]; 
                     $this->public_events[] = sprintf("\$%d碰了%s",
                         $playing_player,
                         Mahjong::mapToWord($last_throw_tile),
@@ -232,6 +233,7 @@ class GameTable
                         return true; // 保留其他牌
                     });
                     $hands = array_values($hands);
+                    $this->players[$playing_player]['door'][] = [$last_throw_tile, $last_throw_tile, $last_throw_tile, $last_throw_tile];
                     $this->players[$playing_player]['hand'] = $hands;
                     $this->public_events[] = sprintf("\$%d槓了%s",
                         $playing_player,
@@ -271,6 +273,11 @@ class GameTable
                     $eating_tiles = array_values(array_filter($eating_tiles, function($tile_id) use ($last_throw_tile) {
                         return $tile_id != $last_throw_tile; // 移除摸到的牌
                     }));
+                    $this->players[$playing_player]['door'][] = [
+                        $eating_tiles[0],
+                        $last_throw_tile,
+                        $eating_tiles[1],
+                    ];
 
                     $this->public_events[] = sprintf("\$%d吃了%s,%s,%s",
                         $playing_player,
@@ -293,7 +300,7 @@ class GameTable
                 if ($input->丟 ?? false) { // 打牌
                     $action_stack = []; // 清空動作堆疊
                     $hands = $this->players[$playing_player]['hand'];
-                    if ($this->players[$playing_player]['drawn_tile']) {
+                    if (!is_null($this->players[$playing_player]['drawn_tile'])) {
                         $hands[] = $this->players[$playing_player]['drawn_tile'];
                     }
                     $tile_id = Mahjong::getTileID($input->丟);
@@ -404,7 +411,7 @@ class GameTable
 
         // 如果手上有三張相同，又摸到一張一樣，允許可以暗槓
         if (count(array_filter($this->players[$check_player_id]['hand'], function($tile) use ($check_player_id) {
-            return $tile == $this->players[$check_player_id]['drawn_tile'];
+            return $tile === $this->players[$check_player_id]['drawn_tile'];
             })) >= 3) {
             $allow[] = [
                 '暗槓',
@@ -532,7 +539,7 @@ class GameTable
         return false;
     }
 
-    public function parseInput($allow, $player_idx, $callback)
+    public function parseInput($allow, $player_idx, $prompt_callback)
     {
         $message = $this->getInitMessage($player_idx);
         if (count($this->public_events) > 0) {
@@ -541,7 +548,7 @@ class GameTable
             }
             $this->players[$player_idx]['saw_event_id'] = count($this->public_events) - 1;
         }
-        if ($this->players[$player_idx]['drawn_tile']) {
+        if (!is_null($this->players[$player_idx]['drawn_tile'])) {
             $message .= sprintf("，你摸到的牌是 %s",
                 Mahjong::mapToWord($this->players[$player_idx]['drawn_tile'])
             );
@@ -552,8 +559,8 @@ class GameTable
                 list($action, $description) = $term;
                 $message .= "\n* {$description}";
             }
-            $message .= "\n(不需要分析為什麼，如果你想要垃圾話，可以透過 \"talk\":\"垃圾話內容\" 補充)";
-            $ret = $callback($message, $player_idx, $this->player_names[$player_idx]);
+            $message .= "\n(不需要分析為什麼，如果你想要垃圾話，可以透過 \"talk\":\"垃圾話內容\" 補充在動作的指令中)";
+            $ret = $prompt_callback($message, $player_idx, $this->player_names[$player_idx]);
             if (!$ret = json_decode($ret)) {
                 continue;
             }
