@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 麻將對局展示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', sans-serif;
+            background: linear-gradient(135deg, #2d5016, #4a7c59);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .main-container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .mahjong-section {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .prompt-section {
+            width: 400px;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            border-left: 3px solid #ffd700;
+        }
+
+        .prompt-header {
+            padding: 20px;
+            border-bottom: 2px solid #ffd700;
+            background: rgba(255,215,0,0.1);
+        }
+
+        .prompt-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ffd700;
+            margin-bottom: 8px;
+        }
+
+        .prompt-subtitle {
+            font-size: 14px;
+            color: #ccc;
+        }
+
+        .prompt-history {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .prompt-entry {
+            margin-bottom: 20px;
+            border-left: 3px solid #666;
+            padding-left: 15px;
+        }
+
+        .prompt-entry.chatgpt {
+            border-left-color: #10a37f;
+        }
+
+        .prompt-entry.gemini {
+            border-left-color: #4285f4;
+        }
+
+        .prompt-entry.claude {
+            border-left-color: #d97706;
+        }
+
+        .prompt-entry.deepseek {
+            border-left-color: #8b5cf6;
+        }
+
+        .prompt-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .ai-name {
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .ai-name.chatgpt {
+            background: #10a37f;
+            color: white;
+        }
+
+        .ai-name.gemini {
+            background: #4285f4;
+            color: white;
+        }
+
+        .ai-name.claude {
+            background: #d97706;
+            color: white;
+        }
+
+        .ai-name.deepseek {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        .prompt-timestamp {
+            font-size: 11px;
+            color: #888;
+        }
+
+        .prompt-content {
+            background: rgba(255,255,255,0.05);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .prompt-label {
+            font-size: 11px;
+            color: #ffd700;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .response-content {
+            background: rgba(255,255,255,0.08);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .table-center {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, #8b4513, #654321);
+            border-radius: 20px;
+            border: 8px solid #d4af37;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        /* 中央打出的牌 */
+        .discard-area {
+            position: absolute;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .discard-north {
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 80px;
+        }
+
+        .discard-east {
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 80px;
+            height: 200px;
+        }
+
+        .discard-south {
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 80px;
+        }
+
+        .discard-west {
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 80px;
+            height: 200px;
+        }
+
+        .discard-tile {
+            width: 22px;
+            height: 30px;
+            background: linear-gradient(145deg, #f0f0f0, #d0d0d0);
+            border: 1px solid #999;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .player-area {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .player-north {
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .player-east {
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+        }
+
+        .player-south {
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .player-west {
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+        }
+
+        .player-info {
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin-bottom: 10px;
+            min-width: 120px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,215,0,0.3);
+        }
+
+        .player-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .wind-label {
+            font-size: 14px;
+            color: #ffd700;
+        }
+
+        .player-cards {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .player-east .player-cards,
+        .player-west .player-cards {
+            flex-direction: column;
+        }
+
+        .tile-rack {
+            display: flex;
+            gap: 2px;
+            align-items: center;
+        }
+
+        .player-north .tile-rack,
+        .player-south .tile-rack {
+            flex-direction: row;
+        }
+
+        .player-east .tile-rack,
+        .player-west .tile-rack {
+            flex-direction: column;
+        }
+
+        .melds {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .player-east .melds,
+        .player-west .melds {
+            flex-direction: column;
+        }
+
+        .meld {
+            display: flex;
+            gap: 1px;
+            padding: 2px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+
+        .player-east .meld,
+        .player-west .meld {
+            flex-direction: column;
+        }
+
+        .tile {
+            width: 28px;
+            height: 38px;
+            background: linear-gradient(145deg, #f0f0f0, #d0d0d0);
+            border: 1px solid #999;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .player-east .tile,
+        .player-west .tile {
+            width: 38px;
+            height: 28px;
+            transform: rotate(90deg);
+        }
+
+        .meld-tile {
+            width: 24px;
+            height: 32px;
+            background: linear-gradient(145deg, #f0f0f0, #d0d0d0);
+            border: 1px solid #999;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .player-east .meld-tile,
+        .player-west .meld-tile {
+            width: 32px;
+            height: 24px;
+            transform: rotate(90deg);
+        }
+
+        .tile.red, .meld-tile.red, .discard-tile.red {
+            color: #dc3545;
+        }
+
+        .tile.green, .meld-tile.green, .discard-tile.green {
+            color: #28a745;
+        }
+
+        .tile.blue, .meld-tile.blue, .discard-tile.blue {
+            color: #007bff;
+        }
+
+        .meld-label {
+            font-size: 10px;
+            color: white;
+            text-align: center;
+            margin-bottom: 2px;
+        }
+
+        .chat-bubble {
+            position: absolute;
+            background: rgba(255,255,255,0.95);
+            padding: 8px 12px;
+            border-radius: 15px;
+            max-width: 200px;
+            word-wrap: break-word;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            border: 2px solid #ffd700;
+        }
+
+        .player-north .chat-bubble {
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .player-east .chat-bubble {
+            right: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            margin-right: 10px;
+        }
+
+        .player-south .chat-bubble {
+            bottom: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .player-west .chat-bubble {
+            left: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- 左側麻將桌面 -->
+        <div class="mahjong-section">
+            <div class="table-center">
+                <!-- 北家打出的牌 -->
+                <div class="discard-area discard-north">
+                    <div class="discard-tile">三萬</div>
+                    <div class="discard-tile green">發</div>
+                    <div class="discard-tile">七筒</div>
+                    <div class="discard-tile">二条</div>
+                    <div class="discard-tile">西</div>
+                    <div class="discard-tile">九萬</div>
+                    <div class="discard-tile">四筒</div>
+                    <div class="discard-tile">六条</div>
+                </div>
+
+                <!-- 東家打出的牌 -->
+                <div class="discard-area discard-east">
+                    <div class="discard-tile">一萬</div>
+                    <div class="discard-tile">南</div>
+                    <div class="discard-tile">八筒</div>
+                    <div class="discard-tile">五条</div>
+                    <div class="discard-tile">北</div>
+                    <div class="discard-tile">二萬</div>
+                    <div class="discard-tile">九筒</div>
+                    <div class="discard-tile">三条</div>
+                </div>
+
+                <!-- 南家打出的牌 -->
+                <div class="discard-area discard-south">
+                    <div class="discard-tile">六萬</div>
+                    <div class="discard-tile">東</div>
+                    <div class="discard-tile">一筒</div>
+                    <div class="discard-tile">八条</div>
+                    <div class="discard-tile">白</div>
+                    <div class="discard-tile">四萬</div>
+                    <div class="discard-tile">五筒</div>
+                    <div class="discard-tile green">中</div>
+                </div>
+
+                <!-- 西家打出的牌 -->
+                <div class="discard-area discard-west">
+                    <div class="discard-tile">七萬</div>
+                    <div class="discard-tile">三筒</div>
+                    <div class="discard-tile">一条</div>
+                    <div class="discard-tile">西</div>
+                    <div class="discard-tile">八萬</div>
+                    <div class="discard-tile">六筒</div>
+                    <div class="discard-tile">九条</div>
+                    <div class="discard-tile">南</div>
+                </div>
+            </div>
+
+            <!-- 北家（上） -->
+            <div class="player-area player-north">
+                <div class="player-info">
+                    <div class="player-name">ChatGPT</div>
+                    <div class="wind-label">北家</div>
+                </div>
+                <div class="player-cards">
+                    <div class="melds">
+                        <div class="meld">
+                            <div class="meld-label">碰</div>
+                            <div class="meld-tile green">發</div>
+                            <div class="meld-tile green">發</div>
+                            <div class="meld-tile green">發</div>
+                        </div>
+                        <div class="meld">
+                            <div class="meld-label">吃</div>
+                            <div class="meld-tile">七萬</div>
+                            <div class="meld-tile">八萬</div>
+                            <div class="meld-tile">九萬</div>
+                        </div>
+                    </div>
+                    <div class="tile-rack">
+                        <div class="tile">一萬</div>
+                        <div class="tile">二萬</div>
+                        <div class="tile">三萬</div>
+                        <div class="tile">四萬</div>
+                        <div class="tile red">五萬</div>
+                        <div class="tile">六萬</div>
+                        <div class="tile">白</div>
+                    </div>
+                </div>
+                <div class="chat-bubble">分析完成，碰發！</div>
+            </div>
+
+            <!-- 東家（右） -->
+            <div class="player-area player-east">
+                <div class="player-info">
+                    <div class="player-name">Gemini</div>
+                    <div class="wind-label">東家 ⭐</div>
+                </div>
+                <div class="player-cards">
+                    <div class="melds">
+                        <div class="meld">
+                            <div class="meld-label">槓</div>
+                            <div class="meld-tile">東</div>
+                            <div class="meld-tile">東</div>
+                            <div class="meld-tile">東</div>
+                            <div class="meld-tile">東</div>
+                        </div>
+                    </div>
+                    <div class="tile-rack">
+                        <div class="tile">一筒</div>
+                        <div class="tile">二筒</div>
+                        <div class="tile">三筒</div>
+                        <div class="tile">四筒</div>
+                        <div class="tile red">五筒</div>
+                        <div class="tile">六筒</div>
+                        <div class="tile">七筒</div>
+                        <div class="tile">八筒</div>
+                        <div class="tile">九筒</div>
+                    </div>
+                </div>
+                <div class="chat-bubble">計算勝率中...立直！</div>
+            </div>
+
+            <!-- 南家（下） -->
+            <div class="player-area player-south">
+                <div class="player-cards">
+                    <div class="tile-rack">
+                        <div class="tile">一条</div>
+                        <div class="tile">二条</div>
+                        <div class="tile">三条</div>
+                        <div class="tile">四条</div>
+                        <div class="tile red">五条</div>
+                        <div class="tile">六条</div>
+                        <div class="tile">七条</div>
+                        <div class="tile">八条</div>
+                        <div class="tile">九条</div>
+                        <div class="tile">東</div>
+                    </div>
+                    <div class="melds">
+                        <div class="meld">
+                            <div class="meld-label">吃</div>
+                            <div class="meld-tile">一萬</div>
+                            <div class="meld-tile">二萬</div>
+                            <div class="meld-tile">三萬</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="player-info">
+                    <div class="player-name">Claude</div>
+                    <div class="wind-label">南家</div>
+                </div>
+                <div class="chat-bubble">思考最佳策略...榮和！</div>
+            </div>
+
+            <!-- 西家（左） -->
+            <div class="player-area player-west">
+                <div class="player-info">
+                    <div class="player-name">DeepSeek</div>
+                    <div class="wind-label">西家</div>
+                </div>
+                <div class="player-cards">
+                    <div class="melds">
+                        <div class="meld">
+                            <div class="meld-label">碰</div>
+                            <div class="meld-tile">白</div>
+                            <div class="meld-tile">白</div>
+                            <div class="meld-tile">白</div>
+                        </div>
+                        <div class="meld">
+                            <div class="meld-label">吃</div>
+                            <div class="meld-tile">四筒</div>
+                            <div class="meld-tile red">五筒</div>
+                            <div class="meld-tile">六筒</div>
+                        </div>
+                    </div>
+                    <div class="tile-rack">
+                        <div class="tile">一萬</div>
+                        <div class="tile">九萬</div>
+                        <div class="tile">一筒</div>
+                        <div class="tile">九筒</div>
+                        <div class="tile">一条</div>
+                        <div class="tile">九条</div>
+                        <div class="tile green">中</div>
+                    </div>
+                </div>
+                <div class="chat-bubble">深度推理中...國士無雙聽牌！</div>
+            </div>
+        </div>
+
+        <!-- 右側 Prompt 歷史 -->
+        <div class="prompt-section">
+            <div class="prompt-header">
+                <div class="prompt-title">AI 對話紀錄</div>
+                <div class="prompt-subtitle">即時顯示 AI 的思考過程與決策</div>
+            </div>
+            <div class="prompt-history">
+                <div class="prompt-entry chatgpt">
+                    <div class="prompt-meta">
+                        <div class="ai-name chatgpt">ChatGPT</div>
+                        <div class="prompt-timestamp">14:23:15</div>
+                    </div>
+                    <div class="prompt-content">
+                        <div class="prompt-label">PROMPT:</div>
+                        你是北家，當前手牌：一萬二萬三萬四萬五萬六萬七萬八萬九萬發發發白。剛才南家打出了發，你要如何行動？
+                    </div>
+                    <div class="response-content">
+                        <div class="prompt-label">RESPONSE:</div>
+                        我選擇碰發！因為我已經有兩張發，碰牌後可以形成三張發的刻子，這對我的牌型很有幫助。碰牌後我會打出白板。
+                    </div>
+                </div>
+
+                <div class="prompt-entry gemini">
+                    <div class="prompt-meta">
+                        <div class="ai-name gemini">Gemini</div>
+                        <div class="prompt-timestamp">14:23:42</div>
+                    </div>
+                    <div class="prompt-content">
+                        <div class="prompt-label">PROMPT:</div>
+                        你是東家（莊家），手牌：一筒二筒三筒四筒五筒六筒七筒八筒九筒東東東東。請分析當前局勢並決定下一步行動。
+                    </div>
+                    <div class="response-content">
+                        <div class="prompt-label">RESPONSE:</div>
+                        分析：我有四張東風，可以明槓。筒子已經形成完整的一到九序列。當前應該立直，因為我只需要任意一張筒子就能和牌。我選擇立直！
+                    </div>
+                </div>
+
+                <div class="prompt-entry claude">
+                    <div class="prompt-meta">
+                        <div class="ai-name claude">Claude</div>
+                        <div class="prompt-timestamp">14:24:01</div>
+                    </div>
+                    <div class="prompt-content">
+                        <div class="prompt-label">PROMPT:</div>
+                        你是南家，東家剛才立直。你的手牌狀況如何？是否要跟進攻擊或是防守？請分析並做出決定。
+                    </div>
+                    <div class="response-content">
+                        <div class="prompt-label">RESPONSE:</div>
+                        東家立直後我需要謹慎評估。我的条子順序很好，加上之前吃的一二三萬，我也接近聽牌。但考慮到東家的威脅，我選擇榮和！我剛好能胡東家打出的牌。
+                    </div>
+                </div>
+
+                <div class="prompt-entry deepseek">
+                    <div class="prompt-meta">
+                        <div class="ai-name deepseek">DeepSeek</div>
+                        <div class="prompt-timestamp">14:24:18</div>
+                    </div>
+                    <div class="prompt-content">
+                        <div class="prompt-label">PROMPT:</div>
+                        你是西家，目前場上競爭激烈，多家聽牌。你的牌型適合什麼策略？分析風險與機會。
+                    </div>
+                    <div class="response-content">
+                        <div class="prompt-label">RESPONSE:</div>
+                        經過深度分析，我的牌型正在朝國士無雙發展。一九萬、一九筒、一九条都有了，還有中字牌。雖然風險很高，但國士無雙是役滿，值得一搏！我宣告國士無雙聽牌！
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

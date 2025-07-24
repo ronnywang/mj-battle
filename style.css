@@ -1,0 +1,173 @@
+/* 全域設定 */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Microsoft JhengHei', 'Heiti TC', 'sans-serif';
+    background-color: #0d4a2e; /* 深綠色背景 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+/* 麻將桌 */
+.mahjong-table {
+    position: relative;
+    width: 90vmin; /* 使用vmin讓桌子大小隨螢幕調整 */
+    height: 90vmin;
+    background-color: #006400; /* 桌面綠色 */
+    border: 20px solid #8B4513; /* 木紋邊框 */
+    border-radius: 30px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+/* 玩家通用樣式 */
+.player {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 玩家資訊 (暱稱和風位) */
+.player-info {
+    color: white;
+    background-color: rgba(0, 0, 0, 0.6);
+    padding: 5px 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    display: flex;
+    gap: 10px;
+    font-size: 1.5vmin;
+}
+
+/* 手牌容器 */
+.hand {
+    display: flex;
+    gap: 3px;
+}
+
+/* 麻將牌樣式 */
+.tile {
+    width: 5vmin;
+    height: 7vmin;
+    background-color: #f7f7f7; /* 牌的米白色 */
+    border: 1px solid #777;
+    border-radius: 4px;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    font-size: 3.5vmin;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    user-select: none; /* 防止選取牌面文字 */
+    color: #333;
+}
+
+/* 特別標示摸來的牌 */
+.tile.drawn {
+    margin-left: 10px; /* 和手牌產生間距 */
+}
+
+
+/* --- 各家位置和旋轉 --- */
+
+/* 南家 (下方) */
+.player-south {
+    bottom: 3%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* 北家 (上方) */
+.player-north {
+    top: 3%;
+    left: 50%;
+    transform: translateX(-50%) rotate(180deg);
+}
+/* 因為父層旋轉了，要把內容轉回來 */
+.player-north .player-info, .player-north .dialogue-bubble {
+    transform: rotate(180deg);
+}
+
+
+/* 西家 (左方) */
+.player-west {
+    top: 50%;
+    left: 3%;
+    transform: translateY(-50%) rotate(90deg);
+}
+.player-west .player-info, .player-west .dialogue-bubble {
+    transform: rotate(-90deg);
+}
+
+/* 東家 (右方) */
+.player-east {
+    top: 50%;
+    right: 3%;
+    transform: translateY(-50%) rotate(-90deg);
+}
+.player-east .player-info, .player-east .dialogue-bubble {
+    transform: rotate(90deg);
+}
+
+
+/* --- 對話框樣式 --- */
+.dialogue-bubble {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    position: relative;
+    font-size: 1.6vmin;
+    min-width: 100px;
+    text-align: center;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+}
+
+/* 用偽元素(::after)製作對話框的箭頭 */
+.dialogue-bubble::after {
+    content: '';
+    position: absolute;
+    border-style: solid;
+}
+
+/* 南家對話框的箭頭 (朝下) */
+.player-south .dialogue-bubble::after {
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 10px 10px 0;
+    border-color: #ffffff transparent transparent transparent;
+}
+
+/* 北家對話框的箭頭 (朝上) */
+.player-north .dialogue-bubble::after {
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 0 10px 10px;
+    border-color: transparent transparent #ffffff transparent;
+}
+
+/* 西家對話框的箭頭 (朝右) */
+.player-west .dialogue-bubble::after {
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border-width: 10px 0 10px 10px;
+    border-color: transparent transparent transparent #ffffff;
+}
+
+/* 東家對話框的箭頭 (朝左) */
+.player-east .dialogue-bubble::after {
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border-width: 10px 10px 10px 0;
+    border-color: transparent #ffffff transparent transparent;
+}

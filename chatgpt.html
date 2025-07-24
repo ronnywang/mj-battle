@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>麻將對戰展示</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #f0f0f0;
+      font-family: sans-serif;
+    }
+
+    .table {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      background-color: #35654d;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .player {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: white;
+    }
+
+    .nickname {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .hand {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .tile {
+      width: 30px;
+      height: 40px;
+      background-color: white;
+      color: black;
+      border: 1px solid #aaa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 18px;
+      border-radius: 4px;
+    }
+
+    .chat {
+      margin-top: 4px;
+      font-size: 14px;
+      color: #ffeb3b;
+    }
+
+    .east  { bottom: 10px; left: 50%; transform: translateX(-50%); }
+    .south { right: 10px; top: 50%; transform: translateY(-50%) rotate(90deg); transform-origin: center; }
+    .west  { left: 10px; top: 50%; transform: translateY(-50%) rotate(-90deg); transform-origin: center; }
+    .north { top: 10px; left: 50%; transform: translateX(-50%); }
+  </style>
+</head>
+<body>
+  <div class="table">
+    <div class="player north">
+      <div class="nickname">北家</div>
+      <div class="hand">
+        <div class="tile">🀄</div>
+        <div class="tile">一</div>
+        <div class="tile">二</div>
+        <div class="tile">三</div>
+        <div class="tile">東</div>
+      </div>
+      <div class="chat">「來試試看！」</div>
+    </div>
+
+    <div class="player east">
+      <div class="nickname">東家</div>
+      <div class="hand">
+        <div class="tile">四</div>
+        <div class="tile">五</div>
+        <div class="tile">六</div>
+        <div class="tile">白</div>
+        <div class="tile">發</div>
+      </div>
+      <div class="chat">「摸一張～」</div>
+    </div>
+
+    <div class="player south">
+      <div class="nickname">南家</div>
+      <div class="hand">
+        <div class="tile">七</div>
+        <div class="tile">八</div>
+        <div class="tile">九</div>
+        <div class="tile">中</div>
+        <div class="tile">東</div>
+      </div>
+      <div class="chat">「碰碰胡啊！」</div>
+    </div>
+
+    <div class="player west">
+      <div class="nickname">西家</div>
+      <div class="hand">
+        <div class="tile">三</div>
+        <div class="tile">五</div>
+        <div class="tile">七</div>
+        <div class="tile">中</div>
+        <div class="tile">白</div>
+      </div>
+      <div class="chat">「想吃一張」</div>
+    </div>
+  </div>
+</body>
+</html>
+
